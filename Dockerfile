@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the entire application code to the working directory
 COPY . .
 
+# List contents to verify the file structure
+RUN ls -R /app
+
 # Initialize the database (adjust path as needed for your database initialization script)
 RUN if [ -f "projectdevsecops/application/db_init.py" ]; then \
         python projectdevsecops/application/db_init.py; \
