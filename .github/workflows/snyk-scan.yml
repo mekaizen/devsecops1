@@ -24,5 +24,6 @@ jobs:
         uses: snyk/actions@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_DEBUG: '1'
         with:
           args: test  
