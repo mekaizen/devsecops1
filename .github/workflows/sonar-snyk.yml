@@ -24,7 +24,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '11'  # Use the required Java version for SonarQube
+          java-version: '17'  # Use the required Java version for SonarQube
 
       - name: Install dependencies
         run: pip install -r requirements.txt
