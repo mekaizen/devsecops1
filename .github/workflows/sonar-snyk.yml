@@ -1,4 +1,4 @@
-name: Security Scan Pipeline
+name: SonarCloud Scan Pipeline
 
 on:
   push:
@@ -9,35 +9,13 @@ on:
       - main
 
 jobs:
-  security_scan:
+  sonarcloud_scan:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Install Snyk CLI
-        run: npm install -g snyk
-
       - name: Run SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: Run Snyk to check for vulnerabilities
-        run: snyk test --file=requirements.txt --json > snyk_report.json
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      - name: Upload Snyk report
-        uses: actions/upload-artifact@v3
-        with:
-          name: snyk_report
-          path: snyk_report.json
