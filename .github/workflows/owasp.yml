@@ -28,9 +28,14 @@ jobs:
       - name: Start Application
         run: docker run -d --name my-app --network zap-network -p 8080:8080 my-python-app
 
-      # Step 5: Run OWASP ZAP Baseline Scan in the Same Network
+      # Step 5: Wait for Application to Start
+      - name: Wait for Application to Start
+        run: sleep 20  # Adjust the sleep time if necessary
+
+      # Step 6: Run OWASP ZAP Baseline Scan in the Same Network with Correct Permissions
       - name: OWASP ZAP Baseline Scan
         run: |
+          chmod 777 "$(pwd)"  # Ensure ZAP has write permissions on the working directory
           docker run --rm \
             --network zap-network \
             -v "$(pwd):/zap/wrk" \
@@ -39,14 +44,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 6: Upload ZAP Report as Artifact
+      # Step 7: Upload ZAP Report as Artifact
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v3
         with:
           name: zap_report
           path: zap_report.html
 
-      # Step 7: Stop and Remove the Application Container
+      # Step 8: Stop and Remove the Application Container
       - name: Stop and Clean Up
         run: |
           docker stop my-app && docker rm my-app
