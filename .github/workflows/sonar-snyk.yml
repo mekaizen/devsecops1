@@ -34,9 +34,9 @@ jobs:
 
       - name: Insall SonaScanner
         run: |
-          curl -sSlo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.6.2.2472-linux.zip
+          curl -sSlo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.5.0.2216-linux.zip
           unzip sonar-scanner.zip -d $HOME
-          echo "$HOME/sonar-scanner-4.6.2.2472-linux/bin" >> $GITHUB_PATH
+          echo "$HOME/sonar-scanner-4.5.0.2216-linux/bin" >> $GITHUB_PATH
           echo "JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))" >> $GITHUB_ENV  
 
       - name: SonarQube Scan
