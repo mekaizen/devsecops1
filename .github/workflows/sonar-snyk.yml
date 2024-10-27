@@ -28,11 +28,11 @@ jobs:
 
       - name: Run SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
-        with:
-          projectKey: devsecops
-          organization: mekaizen  
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectKey: devsecops
+          organization: mekaizen
 
       - name: Run Snyk to check for vulnerabilities
         run: snyk test --file=requirements.txt --json > snyk_report.json
