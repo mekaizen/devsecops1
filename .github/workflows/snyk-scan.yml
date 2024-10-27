@@ -15,15 +15,17 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v2
 
-      - name: Set up Node.js (required if your project is Node-based)
-        uses: actions/setup-node@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
         with:
-          node-version: '14'  # Set this to your required Node.js version
+          python-version: '3.x'  # Set your required Python version here
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-          SNYK_DEBUG: '1'
         with:
-          args: test  
+          args: test --file=requirements.txt
