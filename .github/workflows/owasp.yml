@@ -16,30 +16,38 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v2
 
-      # Step 2: Build the Docker Image from the Dockerfile
+      # Step 2: Create Docker Network
+      - name: Create Docker Network
+        run: docker network create zap-network
+
+      # Step 3: Build the Docker Image from the Dockerfile
       - name: Build Docker Image
         run: docker build -t my-python-app .
 
-      # Step 3: Start the Application
+      # Step 4: Start the Application in the Created Network
       - name: Start Application
-        run: docker run -d --name my-app -p 8080:8080 my-python-app
+        run: docker run -d --name my-app --network zap-network -p 8080:8080 my-python-app
 
-      # Step 4: Run OWASP ZAP Baseline Scan
+      # Step 5: Run OWASP ZAP Baseline Scan in the Same Network
       - name: OWASP ZAP Baseline Scan
         run: |
           docker run --rm \
-            --network="host" \
-            -v $(pwd):/zap/wrk:rw \
+            --network zap-network \
+            -v "$(pwd):/zap/wrk" \
             ghcr.io/zaproxy/zaproxy:weekly \
-            zap-baseline.py -t http://localhost:8080 -r zap_report.html
+            zap-baseline.py -t http://my-app:8080 -r zap_report.html
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 5: Upload ZAP Report as Artifact
+      # Step 6: Upload ZAP Report as Artifact
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v3
         with:
           name: zap_report
           path: zap_report.html
 
-      # Step 6: Stop and Remove the Application Container
-      - name: Stop Application
-        run: docker stop my-app && docker rm my-app
+      # Step 7: Stop and Remove the Application Container
+      - name: Stop and Clean Up
+        run: |
+          docker stop my-app && docker rm my-app
+          docker network rm zap-network
