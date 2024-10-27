@@ -26,17 +26,13 @@ jobs:
       - name: Install Snyk CLI
         run: npm install -g snyk
 
-      - name: SonarQube Scan with Docker
+      - name: Run SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        with:
+          projectKey: devsecops
+          organization: mekaizen  
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          docker run --rm \
-            -e SONAR_HOST_URL="https://sonarcloud.io" \
-            -e SONAR_LOGIN="${{ secrets.SONAR_TOKEN }}" \
-            -v "${{ github.workspace }}:/usr/src" \
-            sonarsource/sonar-scanner-cli \
-            -Dsonar.projectKey=projectdevsecops \
-            -Dsonar.sources=.
 
       - name: Run Snyk to check for vulnerabilities
         run: snyk test --file=requirements.txt --json > snyk_report.json
@@ -48,9 +44,3 @@ jobs:
         with:
           name: snyk_report
           path: snyk_report.json
-
-      - name: Upload SonarQube report
-        uses: actions/upload-artifact@v3
-        with:
-          name: sonarqube_report
-          path: .scannerwork/report-task.txt
