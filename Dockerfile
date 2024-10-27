@@ -12,7 +12,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Initialize the database (adjust path as needed for your database initialization script)
-RUN python projectdevsecops/application/db_init.py
+RUN if [ -f "projectdevsecops/application/db_init.py" ]; then \
+        python projectdevsecops/application/db_init.py; \
+    else \
+        echo "db_init.py not found in expected path"; exit 1; \
+    fi
 
 # Expose the port that the application listens on
 EXPOSE 8080
