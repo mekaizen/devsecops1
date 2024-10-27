@@ -1,36 +1,49 @@
+name: OWASP ZAP Scan Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
 jobs:
   zap_scan:
     runs-on: ubuntu-latest
     steps:
+      # Step 1: Check out the repository
       - name: Check out repository
         uses: actions/checkout@v2
 
-      - name: Create Docker Network
-        run: docker network create zap-network
-
+      # Step 2: Build Docker Image for the Application
       - name: Build Docker Image
         run: docker build -t my-python-app .
 
+      # Step 3: Start Application on Port 8080
       - name: Start Application
-        run: docker run -d --name my-app --network zap-network -p 5000:5000 my-python-app
+        run: docker run -d --name my-app -p 8080:8080 my-python-app
 
+      # Step 4: Confirm Application is Running on Port 8080
+      - name: Confirm Application Port
+        run: docker exec my-app ss -tlnp | grep ':8080'
+
+      # Step 5: Run OWASP ZAP Baseline Scan
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.7.0
         with:
-          target: "http://my-app:5000"
+          target: "http://localhost:8080"
           cmd_options: "-r zap_report.html"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: docker run --rm --network zap-network ghcr.io/zaproxy/zaproxy:weekly zap-baseline.py -t http://my-app:5000 -r zap_report.html
 
+      # Step 6: Upload ZAP Report as Artifact
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v3
         with:
           name: zap_report
           path: zap_report.html
 
+      # Step 7: Stop Application Container
       - name: Stop Application
         run: docker stop my-app && docker rm my-app
-
-      - name: Remove Docker Network
-        run: docker network rm zap-network
