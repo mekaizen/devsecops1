@@ -1,0 +1,61 @@
+name: Security Scan Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  security_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'  # Use the required Java version for SonarQube
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          sonar-scanner \
+            -Dsonar.projectKey=projectdevsecops \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+        continue-on-error: true  # Optionally continue if SonarQube scan fails
+
+      - name: Run Snyk to check for vulnerabilities
+        run: snyk test --file=requirements.txt --json > snyk_report.json
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Upload Snyk report
+        uses: actions/upload-artifact@v3
+        with:
+          name: snyk_report
+          path: snyk_report.json
+
+      - name: Upload SonarQube report
+        uses: actions/upload-artifact@v3
+        with:
+          name: sonarqube_report
+          path: .scannerwork/report-task.txt  # Default location for SonarQube report
