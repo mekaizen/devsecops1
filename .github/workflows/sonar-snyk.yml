@@ -20,35 +20,23 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Set up Java
-        uses: actions/setup-java@v1
-        with:
-          java-version: 17  # Use the required Java version for SonarQube
-
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Install Snyk CLI
         run: npm install -g snyk
 
-      - name: Insall SonaScanner
-        run: |
-          curl -sSlo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.5.0.2216-linux.zip
-          unzip sonar-scanner.zip -d $HOME
-          echo "$HOME/sonar-scanner-4.5.0.2216-linux/bin" >> $GITHUB_PATH
-          echo "JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))" >> $GITHUB_ENV  
-
-      - name: SonarQube Scan
+      - name: SonarQube Scan with Docker
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.12-7/x64  
         run: |
-          sonar-scanner \
+          docker run --rm \
+            -e SONAR_HOST_URL="https://sonarcloud.io" \
+            -e SONAR_LOGIN="${{ secrets.SONAR_TOKEN }}" \
+            -v "${{ github.workspace }}:/usr/src" \
+            sonarsource/sonar-scanner-cli \
             -Dsonar.projectKey=projectdevsecops \
-            -Dsonar.sources=. \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-        continue-on-error: true  # Optionally continue if SonarQube scan fails
+            -Dsonar.sources=.
 
       - name: Run Snyk to check for vulnerabilities
         run: snyk test --file=requirements.txt --json > snyk_report.json
@@ -65,4 +53,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: sonarqube_report
-          path: .scannerwork/report-task.txt  # Default location for SonarQube report
+          path: .scannerwork/report-task.txt
