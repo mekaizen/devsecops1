@@ -12,31 +12,34 @@ jobs:
   zap_scan:
     runs-on: ubuntu-latest
     steps:
-      # Check out the repository
+      # Step 1: Check out the repository
       - name: Check out repository
         uses: actions/checkout@v2
 
-      # Start the Application (adjust as needed)
-      - name: Start Application
-        run: |
-          docker run -d --name my-app -p 8080:8080 my-app-image  # Replace 'my-app-image' with your actual Docker image name
+      # Step 2: Build the Docker Image from the Dockerfile
+      - name: Build Docker Image
+        run: docker build -t my-python-app .
 
-      # Run OWASP ZAP Baseline Scan
+      # Step 3: Start the Application
+      - name: Start Application
+        run: docker run -d --name my-app -p 8080:8080 my-python-app
+
+      # Step 4: Run OWASP ZAP Baseline Scan
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.7.0
         with:
-          target: "http://localhost:8080"  # Replace with your app's URL and port
+          target: "http://localhost:8080"  # Ensure this matches your app's port
           cmd_options: "-r zap_report.html"  # Generates an HTML report
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload ZAP Report as Artifact
+      # Step 5: Upload ZAP Report as Artifact
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v3
         with:
           name: zap_report
           path: zap_report.html
 
-      # Stop and Remove the Application Container
+      # Step 6: Stop and Remove the Application Container
       - name: Stop Application
         run: docker stop my-app && docker rm my-app
