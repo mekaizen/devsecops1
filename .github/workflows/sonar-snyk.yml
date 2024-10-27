@@ -42,6 +42,7 @@ jobs:
       - name: SonarQube Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.12-7/x64  
         run: |
           sonar-scanner \
             -Dsonar.projectKey=projectdevsecops \
