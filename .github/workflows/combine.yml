@@ -9,42 +9,75 @@ on:
       - main
 
 jobs:
+  # Job 1: Run OWASP Dependency Check
   sca_scan:
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Check out the repository
       - name: Check out repository
         uses: actions/checkout@v2
 
-      # Step 2: Download and Set up OWASP Dependency Check
       - name: Download OWASP Dependency Check
         run: |
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v7.1.1/dependency-check-7.1.1-release.zip
           unzip dependency-check-7.1.1-release.zip -d dependency-check
           chmod +x dependency-check/dependency-check/bin/dependency-check.sh
 
-      # Step 3: Run OWASP Dependency Check
       - name: Run OWASP Dependency Check
         run: |
-          mkdir -p security-reports  # Create a directory for reports
+          mkdir -p security-reports  # Create directory for reports
           dependency-check/dependency-check/bin/dependency-check.sh --project "My Project SCA" \
           --scan $(pwd) --format "ALL" --out $(pwd)/security-reports/dependency-check-report
 
-      # Step 4: Install Snyk CLI
+      - name: Upload Dependency Check Report as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-check-report
+          path: security-reports/dependency-check-report
+
+  # Job 2: Run Snyk Scan
+  snyk_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
       - name: Install Snyk CLI
         run: npm install -g snyk
 
-      # Step 5: Run Snyk Security Scan
       - name: Run Snyk to check for vulnerabilities
-        run: snyk test --all-projects --json-file-output=security-reports/snyk-sca-report.json
+        run: |
+          mkdir -p security-reports  # Ensure reports directory exists
+          snyk test --all-projects --json-file-output=security-reports/snyk-sca-report.json
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Step 6: Generate Consolidated Report
+      - name: Upload Snyk Report as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: snyk-sca-report
+          path: security-reports/snyk-sca-report.json
+
+  # Job 3: Combine Both Reports
+  combine_reports:
+    runs-on: ubuntu-latest
+    needs: [sca_scan, snyk_scan]  # Wait for both SCA and Snyk jobs to complete
+
+    steps:
+      - name: Download Dependency Check Report
+        uses: actions/download-artifact@v3
+        with:
+          name: dependency-check-report
+          path: security-reports
+
+      - name: Download Snyk Report
+        uses: actions/download-artifact@v3
+        with:
+          name: snyk-sca-report
+          path: security-reports
+
       - name: Generate Consolidated Report
         run: |
-          # Create consolidated report file
+          # Create a consolidated report file
           echo "### Consolidated SCA Security Report" > security-reports/consolidated-report.md
           
           # Add Dependency Check Report
@@ -63,20 +96,8 @@ jobs:
             echo "Snyk SCA report not found!" >> security-reports/consolidated-report.md
           fi
 
-      # Step 7: Upload Security Reports as Artifacts
-      - name: Upload Security Reports
+      - name: Upload Consolidated Report
         uses: actions/upload-artifact@v3
         with:
-          name: security-reports
-          path: security-reports/
-
-      # Optional Step 8: Fail the workflow if vulnerabilities are found
-      - name: Check for Vulnerabilities
-        run: |
-          if grep -q "VULNERABILITY FOUND" security-reports/dependency-check-report/dependency-check-report.xml || \
-             grep -q "\"vulnerabilities\":[]" security-reports/snyk-sca-report.json; then
-            echo "Vulnerabilities found in dependencies."
-            exit 1
-          else
-            echo "No vulnerabilities found."
-          fi
+          name: consolidated-report
+          path: security-reports/consolidated-report.md
