@@ -104,6 +104,12 @@ jobs:
             echo "Snyk SCA report not found!" >> security-reports/consolidated-report.md
           fi
 
+
+       # Install pandoc for Markdown to HTML conversion
+      - name: Install Pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+    
+
       # Convert the consolidated Markdown report to HTML for better readability
       - name: Convert Markdown to HTML
         run: pandoc security-reports/consolidated-report.md -o security-reports/consolidated-report.html
