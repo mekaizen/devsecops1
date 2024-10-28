@@ -1,0 +1,72 @@
+name: Security Scan Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  security_scans:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      # Step 2: Download and Set up OWASP Dependency Check
+      - name: Download OWASP Dependency Check
+        run: |
+          wget https://github.com/jeremylong/DependencyCheck/releases/download/v7.1.1/dependency-check-7.1.1-release.zip
+          unzip dependency-check-7.1.1-release.zip -d dependency-check
+          chmod +x dependency-check/dependency-check/bin/dependency-check.sh
+
+      # Step 3: Run OWASP Dependency Check
+      - name: Run OWASP Dependency Check
+        run: |
+          mkdir -p security-reports  # Create a directory to store all reports
+          dependency-check/dependency-check/bin/dependency-check.sh --project "My Project SCA" \
+          --scan $(pwd) --format "ALL" --out $(pwd)/security-reports/dependency-check-report
+
+      # Step 4: Set up Snyk
+      - name: Set up Snyk
+        uses: snyk/actions/setup@v2
+        with:
+          version: 'latest'
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # Step 5: Run Snyk SCA Scan
+      - name: Run Snyk SCA Scan
+        run: |
+          snyk test --all-projects --json-file-output=security-reports/snyk-sca-report.json || true
+
+      # Step 6: Generate Consolidated Report
+      - name: Generate Consolidated Report
+        run: |
+          echo "### Consolidated Security Report" > security-reports/consolidated-report.md
+          echo "#### OWASP Dependency Check Report" >> security-reports/consolidated-report.md
+          cat security-reports/dependency-check-report/dependency-check-report.html >> security-reports/consolidated-report.md
+          echo "#### Snyk SCA Report" >> security-reports/consolidated-report.md
+          cat security-reports/snyk-sca-report.json >> security-reports/consolidated-report.md
+
+      # Step 7: Upload Consolidated Report as Artifact
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: security-reports/
+
+      # Optional Step 8: Fail the workflow if vulnerabilities are found
+      - name: Check for Vulnerabilities
+        run: |
+          if grep -q "VULNERABILITY FOUND" security-reports/dependency-check-report/dependency-check-report.xml || \
+             grep -q "\"vulnerabilities\":[]" security-reports/snyk-sca-report.json; then
+            echo "Vulnerabilities found in dependencies."
+            exit 1
+          else
+            echo "No vulnerabilities found."
+          fi
