@@ -52,6 +52,9 @@ jobs:
       - name: Install Snyk CLI
         run: npm install -g snyk
 
+      - name: Install snyk-to-html
+        run: npm install -g snyk-to-html
+
       - name: Run Snyk to check for vulnerabilities
         run: |
           mkdir -p security-reports  # Ensure reports directory exists
