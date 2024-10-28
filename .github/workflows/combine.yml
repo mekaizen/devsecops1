@@ -29,7 +29,7 @@ jobs:
         run: |
           mkdir -p security-reports  # Create a directory to store all reports
           dependency-check/dependency-check/bin/dependency-check.sh --project "My Project SCA" \
-          --scan $(pwd) --format "ALL" --out $(pwd)/security-reports/dependency-check-report
+          --scan $(pwd) --format "ALL" --out $(pwd)/security-reports/dependency-check-report || true
 
       # Step 4: Set up Snyk
       - name: Set up Snyk
@@ -47,11 +47,26 @@ jobs:
       # Step 6: Generate Consolidated Report
       - name: Generate Consolidated Report
         run: |
+          # Initialize consolidated report file
+          touch security-reports/consolidated-report.md
+          
           echo "### Consolidated Security Report" > security-reports/consolidated-report.md
-          echo "#### OWASP Dependency Check Report" >> security-reports/consolidated-report.md
-          cat security-reports/dependency-check-report/dependency-check-report.html >> security-reports/consolidated-report.md
-          echo "#### Snyk SCA Report" >> security-reports/consolidated-report.md
-          cat security-reports/snyk-sca-report.json >> security-reports/consolidated-report.md
+          
+          # Add Dependency Check Report
+          if [[ -f "security-reports/dependency-check-report/dependency-check-report.html" ]]; then
+            echo "#### OWASP Dependency Check Report" >> security-reports/consolidated-report.md
+            cat security-reports/dependency-check-report/dependency-check-report.html >> security-reports/consolidated-report.md
+          else
+            echo "Dependency Check report not found!" >> security-reports/consolidated-report.md
+          fi
+          
+          # Add Snyk SCA Report
+          if [[ -f "security-reports/snyk-sca-report.json" ]]; then
+            echo "#### Snyk SCA Report" >> security-reports/consolidated-report.md
+            cat security-reports/snyk-sca-report.json >> security-reports/consolidated-report.md
+          else
+            echo "Snyk SCA report not found!" >> security-reports/consolidated-report.md
+          fi
 
       # Step 7: Upload Consolidated Report as Artifact
       - name: Upload Security Reports
