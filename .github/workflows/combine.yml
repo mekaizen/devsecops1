@@ -26,7 +26,7 @@ jobs:
         run: |
           mkdir -p security-reports  # Create directory for reports
           dependency-check/dependency-check/bin/dependency-check.sh --project "My Project SCA" \
-          --scan $(pwd) --format "ALL" --out $(pwd)/security-reports/dependency-check-report
+          --scan $(pwd) --format "HTML" --out $(pwd)/security-reports/dependency-check-report.html
 
       - name: Upload Dependency Check Report as Artifact
         uses: actions/upload-artifact@v3
@@ -55,11 +55,9 @@ jobs:
       - name: Run Snyk to check for vulnerabilities
         run: |
           mkdir -p security-reports  # Ensure reports directory exists
-          DEBUG=*snyk* snyk test --file=requirements.txt --json-file-output=security-reports/snyk-sca-report.json
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          snyk test --file=requirements.txt --json-file-output=security-reports/snyk-sca-report.json --json
 
-     # Generate HTML from Snyk JSON Report using a simple converter
+      # Generate HTML from Snyk JSON Report using a simple converter
       - name: Convert Snyk JSON Report to HTML
         run: |
           echo "<html><body><h1>Snyk SCA Report</h1><pre>" > security-reports/snyk-sca-report.html
@@ -90,12 +88,11 @@ jobs:
           name: snyk-sca-report
           path: security-reports
 
-       # Install pandoc for Markdown to HTML conversion
+      # Install pandoc for HTML combination
       - name: Install Pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
-    
 
-       # Combine the Dependency Check and Snyk HTML reports into one HTML file
+      # Combine the Dependency Check and Snyk HTML reports into one HTML file
       - name: Combine Reports into Consolidated HTML
         run: |
           pandoc security-reports/dependency-check-report.html security-reports/snyk-sca-report.html \
