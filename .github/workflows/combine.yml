@@ -32,7 +32,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: dependency-check-report
-          path: security-reports/dependency-check-report
+          path: security-reports/dependency-check-report.html
 
   # Job 2: Run Snyk Scan
   snyk_scan:
@@ -59,11 +59,18 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Upload Snyk Report as Artifact
+     # Generate HTML from Snyk JSON Report using a simple converter
+      - name: Convert Snyk JSON Report to HTML
+        run: |
+          echo "<html><body><h1>Snyk SCA Report</h1><pre>" > security-reports/snyk-sca-report.html
+          cat security-reports/snyk-sca-report.json | jq . >> security-reports/snyk-sca-report.html
+          echo "</pre></body></html>" >> security-reports/snyk-sca-report.html
+
+      - name: Upload Snyk HTML Report as Artifact
         uses: actions/upload-artifact@v3
         with:
           name: snyk-sca-report
-          path: security-reports/snyk-sca-report.json
+          path: security-reports/snyk-sca-report.html
 
   # Job 3: Combine Both Reports
   combine_reports:
@@ -83,36 +90,16 @@ jobs:
           name: snyk-sca-report
           path: security-reports
 
-      - name: Generate Consolidated Report
-        run: |
-          # Create a consolidated report file
-          echo "# Consolidated SCA Security Report" > security-reports/consolidated-report.md
-          
-          # Add Dependency Check Report
-          echo "## OWASP Dependency Check Report" >> security-reports/consolidated-report.md
-          if [[ -f "security-reports/dependency-check-report/dependency-check-report.html" ]]; then
-            cat security-reports/dependency-check-report/dependency-check-report.html >> security-reports/consolidated-report.md
-          else
-            echo "Dependency Check report not found!" >> security-reports/consolidated-report.md
-          fi
-          
-          # Add Snyk SCA Report
-          echo "## Snyk SCA Report" >> security-reports/consolidated-report.md
-          if [[ -f "security-reports/snyk-sca-report.json" ]]; then
-            jq . security-reports/snyk-sca-report.json >> security-reports/consolidated-report.md
-          else
-            echo "Snyk SCA report not found!" >> security-reports/consolidated-report.md
-          fi
-
-
        # Install pandoc for Markdown to HTML conversion
       - name: Install Pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
     
 
-      # Convert the consolidated Markdown report to HTML for better readability
-      - name: Convert Markdown to HTML
-        run: pandoc security-reports/consolidated-report.md -o security-reports/consolidated-report.html
+       # Combine the Dependency Check and Snyk HTML reports into one HTML file
+      - name: Combine Reports into Consolidated HTML
+        run: |
+          pandoc security-reports/dependency-check-report.html security-reports/snyk-sca-report.html \
+          -s -o security-reports/consolidated-report.html
 
       - name: Upload Consolidated Report
         uses: actions/upload-artifact@v3
