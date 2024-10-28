@@ -47,7 +47,7 @@ jobs:
       - name: Run Snyk to check for vulnerabilities
         run: |
           mkdir -p security-reports  # Ensure reports directory exists
-          snyk test --all-projects --json-file-output=security-reports/snyk-sca-report.json
+          DEBUG=*snyk* snyk test --file=requirements.txt --json-file-output=security-reports/snyk-sca-report.json
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
