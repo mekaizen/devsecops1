@@ -26,13 +26,13 @@ jobs:
         run: |
           mkdir -p security-reports  # Create directory for reports
           dependency-check/dependency-check/bin/dependency-check.sh --project "My Project SCA" \
-          --scan $(pwd) --format "HTML" --out $(pwd)/security-reports/dependency-check-report.html
+          --scan $(pwd) --format "ALL" --out $(pwd)/security-reports/dependency-check-report
 
       - name: Upload Dependency Check Report as Artifact
         uses: actions/upload-artifact@v3
         with:
           name: dependency-check-report
-          path: security-reports/dependency-check-report.html
+          path: security-reports/dependency-check-report
 
   # Job 2: Run Snyk Scan
   snyk_scan:
@@ -47,13 +47,13 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt     
+        run: pip install -r requirements.txt
 
       - name: Install Snyk CLI
         run: npm install -g snyk
 
       - name: Install snyk-to-html
-        run: npm install -g snyk-to-html
+        run: npm install -g snyk-to-html  # Install snyk-to-html
 
       - name: Run Snyk to check for vulnerabilities
         run: |
@@ -62,14 +62,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Generate HTML from Snyk JSON Report using a simple converter
-      - name: Convert Snyk JSON Report to HTML
-        run: |
-          echo "<html><body><h1>Snyk SCA Report</h1><pre>" > security-reports/snyk-sca-report.html
-          cat security-reports/snyk-sca-report.json | jq . >> security-reports/snyk-sca-report.html
-          echo "</pre></body></html>" >> security-reports/snyk-sca-report.html
-
-      - name: Upload Snyk HTML Report as Artifact
+      - name: Upload Snyk Report as Artifact
         uses: actions/upload-artifact@v3
         with:
           name: snyk-sca-report
@@ -78,7 +71,7 @@ jobs:
   # Job 3: Combine Both Reports
   combine_reports:
     runs-on: ubuntu-latest
-    needs: [sca_scan, snyk_scan]  # Wait for both SCA and Snyk jobs to complete
+    needs: [sca_scan, snyk_scan]
 
     steps:
       - name: Download Dependency Check Report
@@ -93,17 +86,29 @@ jobs:
           name: snyk-sca-report
           path: security-reports
 
-      # Install pandoc for HTML combination
-      - name: Install Pandoc
-        run: sudo apt-get update && sudo apt-get install -y pandoc
-
-      # Combine the Dependency Check and Snyk HTML reports into one HTML file
-      - name: Combine Reports into Consolidated HTML
+      - name: Generate Consolidated HTML Report
         run: |
-          pandoc security-reports/dependency-check-report.html security-reports/snyk-sca-report.html \
-          -s -o security-reports/consolidated-report.html
+          echo "<html><body><h1>Consolidated SCA Security Report</h1>" > security-reports/consolidated-report.html
+          
+          # Add Dependency Check HTML Report if available
+          if [[ -f "security-reports/dependency-check-report/dependency-check-report.html" ]]; then
+            echo "<h2>OWASP Dependency Check Report</h2>" >> security-reports/consolidated-report.html
+            cat security-reports/dependency-check-report/dependency-check-report.html >> security-reports/consolidated-report.html
+          else
+            echo "<p>Dependency Check report not found!</p>" >> security-reports/consolidated-report.html
+          fi
+          
+          # Add Snyk HTML Report if available
+          if [[ -f "security-reports/snyk-sca-report.html" ]]; then
+            echo "<h2>Snyk SCA Report</h2>" >> security-reports/consolidated-report.html
+            cat security-reports/snyk-sca-report.html >> security-reports/consolidated-report.html
+          else
+            echo "<p>Snyk SCA report not found!</p>" >> security-reports/consolidated-report.html
+          fi
 
-      - name: Upload Consolidated Report
+          echo "</body></html>" >> security-reports/consolidated-report.html
+
+      - name: Upload Consolidated HTML Report
         uses: actions/upload-artifact@v3
         with:
           name: consolidated-report
