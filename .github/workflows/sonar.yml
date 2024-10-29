@@ -58,12 +58,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v2
 
-      - name: Build Docker Image
-        run: docker build -t my-python-app .
-
-      - name: Start Application
-        run: docker run -d --name my-app -p 8080:8080 my-python-app
-
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.7.0
         with:
@@ -79,25 +73,16 @@ jobs:
           name: zap_reports
           path: security-reports
 
-      - name: Stop Application
-        run: docker stop my-app && docker rm my-app
-
   sca_scan:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
 
-      - name: Download OWASP Dependency Check
-        run: |
-          wget https://github.com/jeremylong/DependencyCheck/releases/download/v7.1.1/dependency-check-7.1.1-release.zip -O dependency-check.zip
-          unzip dependency-check.zip -d dependency-check
-          chmod +x dependency-check/bin/dependency-check.sh
-
       - name: Run OWASP Dependency Check
         run: |
           mkdir -p security-reports
-          dependency-check/bin/dependency-check.sh --project "My Project SCA" \
+          dependency-check/dependency-check/bin/dependency-check.sh --project "My Project SCA" \
           --scan $(pwd) --format "HTML" --out security-reports/dependency-check-report.html
 
       - name: Upload Dependency Check Report as Artifact
