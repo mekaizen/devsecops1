@@ -27,8 +27,17 @@ jobs:
 
       - name: Convert JSON to HTML
         run: |
-          echo "<html><body><h2>SonarCloud Issues Report</h2><ul>" > /tmp/sonar/sonar-report.html
-          jq -r '.issues[] | "<li>\(.message) - Severity: \(.severity)</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
+          echo "<html><head><style>
+          body { font-family: Arial, sans-serif; }
+          h2 { color: #4CAF50; }
+          ul { list-style-type: none; padding: 0; }
+          li { margin: 10px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+          .severity-BLOCKER { color: #ff4d4d; font-weight: bold; }
+          .severity-CRITICAL { color: #ff751a; }
+          .severity-MAJOR { color: #ffcc00; }
+          .severity-MINOR { color: #666666; }
+          </style></head><body><h2>SonarCloud Issues Report</h2><ul>" > /tmp/sonar/sonar-report.html
+          jq -r '.issues[] | "<li class=\"severity-\(.severity)\"> \(.message) - Severity: \(.severity)</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
           echo "</ul></body></html>" >> /tmp/sonar/sonar-report.html
 
       - name: Upload HTML Report
