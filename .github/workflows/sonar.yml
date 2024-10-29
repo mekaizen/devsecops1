@@ -25,20 +25,54 @@ jobs:
           mkdir -p /tmp/sonar
           curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=mekaizen_projectdevsecops&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > /tmp/sonar/sonar-report.json
 
-      - name: Convert JSON to HTML
+      - name: Convert JSON to HTML with Chart
         run: |
+          # Create HTML report with categorization and chart
           echo "<html><head><style>
-          body { font-family: Arial, sans-serif; }
+          body { font-family: Arial, sans-serif; margin: 20px; }
           h2 { color: #4CAF50; }
+          h3 { margin-top: 20px; }
           ul { list-style-type: none; padding: 0; }
           li { margin: 10px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-          .severity-BLOCKER { color: #ff4d4d; font-weight: bold; }
-          .severity-CRITICAL { color: #ff751a; }
-          .severity-MAJOR { color: #ffcc00; }
-          .severity-MINOR { color: #666666; }
-          </style></head><body><h2>SonarCloud Issues Report</h2><ul>" > /tmp/sonar/sonar-report.html
-          jq -r '.issues[] | "<li class=\"severity-\(.severity)\"> \(.message) - Severity: \(.severity)</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
-          echo "</ul></body></html>" >> /tmp/sonar/sonar-report.html
+          .severity-HIGH { color: #ff4d4d; font-weight: bold; }
+          .severity-MEDIUM { color: #ffcc00; }
+          .severity-LOW { color: #666666; }
+          </style><script src='https://cdn.jsdelivr.net/npm/chart.js'></script></head><body>" > /tmp/sonar/sonar-report.html
+          
+          echo "<h2>SonarCloud Issues Report</h2>" >> /tmp/sonar/sonar-report.html
+          
+          # Count issues by severity
+          echo "<script>const issueData = {HIGH: 0, MEDIUM: 0, LOW: 0};</script>" >> /tmp/sonar/sonar-report.html
+          jq -r '.issues[] | if .severity == "BLOCKER" or .severity == "CRITICAL" then "<li class=\"severity-HIGH\">\(.message) - Severity: HIGH</li>" | .severity |= "HIGH" elif .severity == "MAJOR" then "<li class=\"severity-MEDIUM\">\(.message) - Severity: MEDIUM</li>" | .severity |= "MEDIUM" else "<li class=\"severity-LOW\">\(.message) - Severity: LOW</li>" | .severity |= "LOW" end' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
+          
+          echo "<h3>High Severity Issues</h3><ul>" >> /tmp/sonar/sonar-report.html
+          jq -r '.issues[] | select(.severity == "BLOCKER" or .severity == "CRITICAL") | "<li>\(.message) - Severity: HIGH</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
+          echo "</ul><h3>Medium Severity Issues</h3><ul>" >> /tmp/sonar/sonar-report.html
+          jq -r '.issues[] | select(.severity == "MAJOR") | "<li>\(.message) - Severity: MEDIUM</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
+          echo "</ul><h3>Low Severity Issues</h3><ul>" >> /tmp/sonar/sonar-report.html
+          jq -r '.issues[] | select(.severity == "MINOR") | "<li>\(.message) - Severity: LOW</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
+          echo "</ul>" >> /tmp/sonar/sonar-report.html
+          
+          # JavaScript Chart
+          echo "<h3>Severity Distribution</h3><canvas id='severityChart' width='400' height='400'></canvas>
+          <script>
+          const data = {
+            labels: ['High', 'Medium', 'Low'],
+            datasets: [{
+              label: 'Issue Severity Distribution',
+              data: [issueData.HIGH, issueData.MEDIUM, issueData.LOW],
+              backgroundColor: ['#ff4d4d', '#ffcc00', '#666666'],
+              hoverOffset: 4
+            }]
+          };
+          const config = {
+            type: 'pie',
+            data: data,
+          };
+          new Chart(document.getElementById('severityChart'), config);
+          </script>" >> /tmp/sonar/sonar-report.html
+          
+          echo "</body></html>" >> /tmp/sonar/sonar-report.html
 
       - name: Upload HTML Report
         uses: actions/upload-artifact@v4
