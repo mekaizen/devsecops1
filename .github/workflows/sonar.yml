@@ -92,7 +92,6 @@ jobs:
           path: /tmp/sonar/sonar-report.html
           
  
-  # Job 2: DAST - Run OWASP ZAP Scan
   zap_scan:
     runs-on: ubuntu-latest
     steps:
@@ -127,9 +126,6 @@ jobs:
         run: docker stop my-app && docker rm my-app
         
         
-        
-        
- # Job 3: SCA - Run OWASP Dependency Check
   sca_scan:
     runs-on: ubuntu-latest
     steps:
@@ -154,67 +150,40 @@ jobs:
           name: dependency-check-report
           path: security-reports/dependency-check-report.html
 
-  # Job 4: Combine Reports and Send Email
   combine_reports:
-  runs-on: ubuntu-latest
-  needs: [sonarcloud_scan, zap_scan, sca_scan]
-  steps:
-    - name: Download SonarQube Report
-      uses: actions/download-artifact@v3
-      with:
-        name: SonarCloud HTML Report
-        path: security-reports
+    runs-on: ubuntu-latest
+    needs: [sonarcloud_scan, zap_scan, sca_scan]
+    steps:
+      - name: Download SonarQube Report
+        uses: actions/download-artifact@v3
+        with:
+          name: SonarCloud HTML Report
+          path: security-reports
 
-    - name: Download ZAP Report
-      uses: actions/download-artifact@v3
-      with:
-        name: zap_reports
-        path: security-reports
+      - name: Download ZAP Report
+        uses: actions/download-artifact@v3
+        with:
+          name: zap_reports
+          path: security-reports
 
-    - name: Download Dependency Check Report
-      uses: actions/download-artifact@v3
-      with:
-        name: dependency-check-report
-        path: security-reports
+      - name: Download Dependency Check Report
+        uses: actions/download-artifact@v3
+        with:
+          name: dependency-check-report
+          path: security-reports
 
-    - name: Generate Consolidated HTML Report
-      run: |
-        echo "<html><head><style>body { font-family: Arial, sans-serif; } h1, h2 { color: #4CAF50; }</style></head><body><h1>Consolidated Security Report</h1>" > security-reports/consolidated-report.html
+      - name: Generate Consolidated HTML Report
+        run: |
+          echo "<html><head><style>body { font-family: Arial, sans-serif; } h1, h2 { color: #4CAF50; }</style></head><body><h1>Consolidated Security Report</h1>" > security-reports/consolidated-report.html
 
-        # Add SonarQube HTML Report if available
-        if [[ -f "security-reports/sonar-report.html" ]]; then
-          echo "<h2>SonarQube SAST Report</h2>" >> security-reports/consolidated-report.html
-          cat security-reports/sonar-report.html >> security-reports/consolidated-report.html
-        else
-          echo "<p>SonarQube report not found!</p>" >> security-reports/consolidated-report.html
-        fi
+          # Add SonarQube HTML Report if available
+          if [[ -f "security-reports/sonar-report.html" ]]; then
+            echo "<h2>SonarQube SAST Report</h2>" >> security-reports/consolidated-report.html
+            cat security-reports/sonar-report.html >> security-reports/consolidated-report.html
+          else
+            echo "<p>SonarQube report not found!</p>" >> security-reports/consolidated-report.html
+          fi
 
-        # Add ZAP HTML Report if available
-        if [[ -f "security-reports/zap-reports/zap_report.html" ]]; then
-          echo "<h2>OWASP ZAP DAST Report</h2>" >> security-reports/consolidated-report.html
-          cat security-reports/zap-reports/zap_report.html >> security-reports/consolidated-report.html
-        else
-          echo "<p>ZAP report not found!</p>" >> security-reports/consolidated-report.html
-        fi
-
-        # Add Dependency Check HTML Report if available
-        if [[ -f "security-reports/dependency-check-report.html" ]]; then
-          echo "<h2>OWASP Dependency Check SCA Report</h2>" >> security-reports/consolidated-report.html
-          cat security-reports/dependency-check-report.html >> security-reports/consolidated-report.html
-        else
-          echo "<p>Dependency Check report not found!</p>" >> security-reports/consolidated-report.html
-        fi
-
-        echo "</body></html>" >> security-reports/consolidated-report.html
-
-        # Verification for complete HTML file
-        if ! tail -n 1 security-reports/consolidated-report.html | grep -q "</html>"; then
-          echo "Error: Consolidated HTML report is incomplete."
-          exit 1
-        fi
-
-    - name: Upload Consolidated HTML Report
-      uses: actions/upload-artifact@v3
-      with:
-        name: consolidated-report
-        path: security-reports/consolidated-report.html
+          # Add ZAP HTML Report if available
+          if [[ -f "security-reports/zap-reports/zap_report.html" ]]; then
+            echo "<h2>OWASP ZAP DAST Report</h2>" >> security
