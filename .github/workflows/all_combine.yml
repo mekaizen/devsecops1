@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  # Job 1: SAST - Run SonarQube Scan
+  # Job 1: SAST - Run SonarQube Scan and Generate Report
   sonarcloud_scan:
     runs-on: ubuntu-latest
     steps:
@@ -20,11 +20,21 @@ jobs:
         uses: sonarsource/sonarcloud-github-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          
-      - name: Download SonarQube Report
+          SONAR_PROJECT_KEY: "your_project_key"  # Replace with your project key
+
+      - name: Generate Sonar Report
         run: |
           mkdir -p security-reports
-          curl -u ${{ secrets.SONAR_TOKEN }} "https://sonarcloud.io/api/issues/search?componentKeys=your_project_key" -o security-reports/sonar-report.html
+          curl -u ${{ secrets.SONAR_TOKEN }} \
+            "https://sonarcloud.io/api/issues/search?componentKeys=your_project_key&resolved=false" \
+            -o security-reports/sonar-report.json
+          # Optional: Process the JSON report to HTML or Markdown as needed.
+
+      - name: Upload SonarQube Report as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sonar_report
+          path: security-reports/sonar-report.json
 
   # Job 2: DAST - Run OWASP ZAP Scan
   zap_scan:
@@ -112,10 +122,11 @@ jobs:
         run: |
           echo "<html><body><h1>Consolidated Security Report</h1>" > security-reports/consolidated-report.html
           
-          # Add SonarQube HTML Report if available
-          if [[ -f "security-reports/sonar-report.html" ]]; then
-            echo "<h2>SonarQube SAST Report</h2>" >> security-reports/consolidated-report.html
-            cat security-reports/sonar-report.html >> security-reports/consolidated-report.html
+          # Add SonarQube JSON Report if available
+          if [[ -f "security-reports/sonar-report.json" ]]; then
+            echo "<h2>SonarQube SAST Report</h2><pre>" >> security-reports/consolidated-report.html
+            cat security-reports/sonar-report.json >> security-reports/consolidated-report.html
+            echo "</pre>" >> security-reports/consolidated-report.html
           else
             echo "<p>SonarQube report not found!</p>" >> security-reports/consolidated-report.html
           fi
@@ -137,3 +148,10 @@ jobs:
           fi
 
           echo "</body></html>" >> security-reports/consolidated-report.html
+
+      - name: Upload Consolidated HTML Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: consolidated-report
+          path: security-reports/consolidated-report.html
+
