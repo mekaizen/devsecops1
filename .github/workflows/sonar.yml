@@ -23,7 +23,7 @@ jobs:
       - name: Export SonarCloud Report to JSON
         run: |
           mkdir -p .scannerwork
-          curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=<your_project_key>&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > .scannerwork/sonar-report.json
+          curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=mekaizen_projectdevsecops&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > .scannerwork/sonar-report.json
 
       - name: Convert JSON to HTML
         run: |
@@ -32,7 +32,7 @@ jobs:
           echo "</ul></body></html>" >> sonar-report.html
 
       - name: Upload HTML Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v2
         with:
           name: SonarCloud HTML Report
           path: sonar-report.html
