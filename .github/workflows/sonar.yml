@@ -94,7 +94,8 @@ jobs:
       - name: List ZAP Report Files
         run: |
           echo "Listing files in /tmp/security-reports:"
-          ls -l /tmp/security-reports
+          ls -l /tmp/security-reports || echo "No files found in /tmp/security-reports"
+
 
       - name: Verify ZAP Report Files
         run: |
