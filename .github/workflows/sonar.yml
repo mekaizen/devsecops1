@@ -62,7 +62,7 @@ jobs:
           } >> /tmp/security-reports/sonar-report.html
 
       - name: Upload SonarCloud HTML Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: sonar_report
           path: /tmp/security-reports/sonar-report.html
