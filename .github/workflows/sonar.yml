@@ -1,4 +1,4 @@
-name: SonarCloud Scan Pipeline
+name: Security Scan Pipeline
 
 on:
   push:
@@ -24,7 +24,6 @@ jobs:
         run: |
           mkdir -p /tmp/security-reports
           curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=mekaizen_projectdevsecops&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > /tmp/security-reports/sonar-report.json
-          # Check if JSON is valid
           if ! jq empty /tmp/security-reports/sonar-report.json > /dev/null 2>&1; then
             echo "Error: Received invalid JSON from SonarCloud API"
             cat /tmp/security-reports/sonar-report.json
@@ -46,11 +45,7 @@ jobs:
             echo "</style><script src='https://cdn.jsdelivr.net/npm/chart.js'></script></head><body>"
             echo "<h2>SonarCloud Issues Report</h2>"
           } > /tmp/security-reports/sonar-report.html
-
-          # Initialize JavaScript object for chart data
           echo "<script>const issueData = {HIGH: 0, MEDIUM: 0, LOW: 0};</script>" >> /tmp/security-reports/sonar-report.html
-
-          # Categorize issues and write to HTML file
           {
             echo "<h3>High Severity Issues</h3><ul>"
             jq -r '.issues[] | select(.severity == "BLOCKER" or .severity == "CRITICAL") | "<li class=\"severity-HIGH\">\(.message) - Severity: HIGH</li>"' /tmp/security-reports/sonar-report.json
