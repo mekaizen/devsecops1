@@ -15,29 +15,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v2
 
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-
       - name: Run SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=your_project_key
-            -Dsonar.organization=your_organization
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-            -Dsonar.report.export.path=sonar-report.json
 
       - name: Generate HTML Report
+        if: success()
         run: |
           curl -L https://github.com/mkdocs/sonar-report-converter/releases/latest/download/sonar-report-converter.jar -o sonar-report-converter.jar
-          java -jar sonar-report-converter.jar -i sonar-report.json -o sonar-report.html
+          java -jar sonar-report-converter.jar -i .scannerwork/report-task.txt -o sonar-report.html
 
       - name: Upload HTML Report
+        if: success()
         uses: actions/upload-artifact@v2
         with:
           name: SonarCloud HTML Report
