@@ -88,6 +88,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify ZAP Report Files
+        run: |
+          if [[ -f "/tmp/security-reports/zap_report.html" && -f "/tmp/security-reports/zap_out.json" && -f "/tmp/security-reports/zap_report.md" ]]; then
+            echo "All ZAP report files generated successfully."
+          else
+            echo "Error: One or more ZAP report files are missing."
+            exit 1
+          fi
+
       - name: Upload ZAP Reports as Artifacts
         uses: actions/upload-artifact@v3
         with:
