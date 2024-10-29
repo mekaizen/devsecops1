@@ -32,7 +32,7 @@ jobs:
           echo "</ul></body></html>" >> /tmp/sonar/sonar-report.html
 
       - name: Upload HTML Report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: SonarCloud HTML Report
           path: /tmp/sonar/sonar-report.html
