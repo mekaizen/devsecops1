@@ -79,6 +79,9 @@ jobs:
       - name: Start Application
         run: docker run -d --name my-app -p 8080:8080 my-python-app
 
+      - name: Ensure Directory for ZAP Reports
+        run: mkdir -p /tmp/security-reports   
+
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.7.0
         with:
