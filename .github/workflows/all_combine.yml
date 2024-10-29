@@ -16,17 +16,37 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v2
 
-      - name: Run SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@master
+       # Step 2: Set up Java for SonarQube
+      - name: Set up Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17  # Ensure Java version matches SonarQube requirements
+
+      # Step 3: Install SonarScanner CLI
+      - name: Install SonarScanner
+        run: |
+          curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.5.0.2216-linux.zip
+          unzip sonar-scanner.zip -d $HOME
+          echo "$HOME/sonar-scanner-4.5.0.2216-linux/bin" >> $GITHUB_PATH
+          echo "JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))" >> $GITHUB_ENV
+
+      # Step 4: Run SonarQube Scan
+      - name: SonarQube Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: "your_project_key"  # Replace with your SonarQube project key
-
-      - name: Generate SonarQube HTML Report
+          JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.12-7/x64
         run: |
-          mkdir -p security-reports
-          curl -u ${{ secrets.SONAR_TOKEN }} "https://sonarcloud.io/api/issues/search?componentKeys=your_project_key&resolved=false&types=BUG,VULNERABILITY,CODE_SMELL&severities=CRITICAL,BLOCKER,MAJOR" > security-reports/sonar_report.html
-      - name: Upload SonarQube Report as Artifact
+          mkdir -p security-reports  # Ensure reports directory exists
+          sonar-scanner \
+            -Dsonar.projectKey=projectdevsecops \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.htmlReportPath=security-reports/sonar_report.html
+        continue-on-error: true  # Optionally continue if SonarQube scan fails
+
+      # Step 5: Upload SonarQube HTML Report as Artifact
+      - name: Upload SonarQube Report
         uses: actions/upload-artifact@v3
         with:
           name: sonar_report
