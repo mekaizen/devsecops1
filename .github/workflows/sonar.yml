@@ -22,11 +22,12 @@ jobs:
 
       - name: Export SonarCloud Report to JSON
         run: |
-          mkdir -p security-reports
-          curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=mekaizen_projectdevsecops&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > security-reports/sonar-report.json
-          if ! jq empty security-reports/sonar-report.json > /dev/null 2>&1; then
+          mkdir -p /tmp/security-reports
+          curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=mekaizen_projectdevsecops&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > /tmp/security-reports/sonar-report.json
+          # Check if JSON is valid
+          if ! jq empty /tmp/security-reports/sonar-report.json > /dev/null 2>&1; then
             echo "Error: Received invalid JSON from SonarCloud API"
-            cat security-reports/sonar-report.json
+            cat /tmp/security-reports/sonar-report.json
             exit 1
           fi
 
@@ -44,13 +45,27 @@ jobs:
             echo ".severity-LOW { color: #666666; }"
             echo "</style><script src='https://cdn.jsdelivr.net/npm/chart.js'></script></head><body>"
             echo "<h2>SonarCloud Issues Report</h2>"
-          } > security-reports/sonar-report.html
+          } > /tmp/security-reports/sonar-report.html
+
+          # Initialize JavaScript object for chart data
+          echo "<script>const issueData = {HIGH: 0, MEDIUM: 0, LOW: 0};</script>" >> /tmp/security-reports/sonar-report.html
+
+          # Categorize issues and write to HTML file
+          {
+            echo "<h3>High Severity Issues</h3><ul>"
+            jq -r '.issues[] | select(.severity == "BLOCKER" or .severity == "CRITICAL") | "<li class=\"severity-HIGH\">\(.message) - Severity: HIGH</li>"' /tmp/security-reports/sonar-report.json
+            echo "</ul><h3>Medium Severity Issues</h3><ul>"
+            jq -r '.issues[] | select(.severity == "MAJOR") | "<li class=\"severity-MEDIUM\">\(.message) - Severity: MEDIUM</li>"' /tmp/security-reports/sonar-report.json
+            echo "</ul><h3>Low Severity Issues</h3><ul>"
+            jq -r '.issues[] | select(.severity == "MINOR") | "<li class=\"severity-LOW\">\(.message) - Severity: LOW</li>"' /tmp/security-reports/sonar-report.json
+            echo "</ul>"
+          } >> /tmp/security-reports/sonar-report.html
 
       - name: Upload SonarCloud HTML Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sonar_report
-          path: security-reports/sonar-report.html
+          path: /tmp/security-reports/sonar-report.html
 
   zap_scan:
     runs-on: ubuntu-latest
@@ -58,11 +73,17 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v2
 
+      - name: Build Docker Image
+        run: docker build -t my-python-app .
+
+      - name: Start Application
+        run: docker run -d --name my-app -p 8080:8080 my-python-app
+
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.7.0
         with:
           target: "http://localhost:8080"
-          cmd_options: "-r security-reports/zap_report.html -J security-reports/zap_out.json -w security-reports/zap_report.md"
+          cmd_options: "-r /tmp/security-reports/zap_report.html -J /tmp/security-reports/zap_out.json -w /tmp/security-reports/zap_report.md"
           docker_name: "ghcr.io/zaproxy/zaproxy:weekly"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,7 +92,10 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: zap_reports
-          path: security-reports
+          path: /tmp/security-reports
+
+      - name: Stop Application
+        run: docker stop my-app && docker rm my-app
 
   sca_scan:
     runs-on: ubuntu-latest
@@ -79,17 +103,23 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v2
 
+      - name: Download OWASP Dependency Check
+        run: |
+          wget https://github.com/jeremylong/DependencyCheck/releases/download/v7.1.1/dependency-check-7.1.1-release.zip
+          unzip dependency-check-7.1.1-release.zip -d dependency-check
+          chmod +x dependency-check/dependency-check/bin/dependency-check.sh
+
       - name: Run OWASP Dependency Check
         run: |
-          mkdir -p security-reports
+          mkdir -p /tmp/security-reports
           dependency-check/dependency-check/bin/dependency-check.sh --project "My Project SCA" \
-          --scan $(pwd) --format "HTML" --out security-reports/dependency-check-report.html
+          --scan $(pwd) --format "HTML" --out /tmp/security-reports/dependency-check-report.html
 
       - name: Upload Dependency Check Report as Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: dependency_check_report
-          path: security-reports/dependency-check-report.html
+          name: dependency-check-report
+          path: /tmp/security-reports/dependency-check-report.html
 
   combine_reports:
     runs-on: ubuntu-latest
@@ -99,52 +129,52 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: sonar_report
-          path: security-reports
+          path: /tmp/security-reports
 
       - name: Download ZAP Report
         uses: actions/download-artifact@v3
         with:
           name: zap_reports
-          path: security-reports
+          path: /tmp/security-reports
 
       - name: Download Dependency Check Report
         uses: actions/download-artifact@v3
         with:
-          name: dependency_check_report
-          path: security-reports
+          name: dependency-check-report
+          path: /tmp/security-reports
 
       - name: Generate Consolidated HTML Report
         run: |
-          echo "<html><head><style>body { font-family: Arial, sans-serif; } h1, h2 { color: #4CAF50; }</style></head><body><h1>Consolidated Security Report</h1>" > security-reports/consolidated-report.html
+          echo "<html><head><style>body { font-family: Arial, sans-serif; } h1, h2 { color: #4CAF50; }</style></head><body><h1>Consolidated Security Report</h1>" > /tmp/security-reports/consolidated-report.html
 
           # Add SonarQube HTML Report if available
-          if [[ -f "security-reports/sonar-report.html" ]]; then
-            echo "<h2>SonarQube SAST Report</h2>" >> security-reports/consolidated-report.html
-            cat security-reports/sonar-report.html >> security-reports/consolidated-report.html
+          if [[ -f "/tmp/security-reports/sonar-report.html" ]]; then
+            echo "<h2>SonarQube SAST Report</h2>" >> /tmp/security-reports/consolidated-report.html
+            cat /tmp/security-reports/sonar-report.html >> /tmp/security-reports/consolidated-report.html
           else
-            echo "<p>SonarQube report not found!</p>" >> security-reports/consolidated-report.html
+            echo "<p>SonarQube report not found!</p>" >> /tmp/security-reports/consolidated-report.html
           fi
 
           # Add ZAP HTML Report if available
-          if [[ -f "security-reports/zap_report.html" ]]; then
-            echo "<h2>OWASP ZAP DAST Report</h2>" >> security-reports/consolidated-report.html
-            cat security-reports/zap_report.html >> security-reports/consolidated-report.html
+          if [[ -f "/tmp/security-reports/zap_report.html" ]]; then
+            echo "<h2>OWASP ZAP DAST Report</h2>" >> /tmp/security-reports/consolidated-report.html
+            cat /tmp/security-reports/zap_report.html >> /tmp/security-reports/consolidated-report.html
           else
-            echo "<p>ZAP report not found!</p>" >> security-reports/consolidated-report.html
+            echo "<p>ZAP report not found!</p>" >> /tmp/security-reports/consolidated-report.html
           fi
 
           # Add Dependency Check HTML Report if available
-          if [[ -f "security-reports/dependency-check-report.html" ]]; then
-            echo "<h2>OWASP Dependency Check SCA Report</h2>" >> security-reports/consolidated-report.html
-            cat security-reports/dependency-check-report.html >> security-reports/consolidated-report.html
+          if [[ -f "/tmp/security-reports/dependency-check-report.html" ]]; then
+            echo "<h2>OWASP Dependency Check SCA Report</h2>" >> /tmp/security-reports/consolidated-report.html
+            cat /tmp/security-reports/dependency-check-report.html >> /tmp/security-reports/consolidated-report.html
           else
-            echo "<p>Dependency Check report not found!</p>" >> security-reports/consolidated-report.html
+            echo "<p>Dependency Check report not found!</p>" >> /tmp/security-reports/consolidated-report.html
           fi
 
-          echo "</body></html>" >> security-reports/consolidated-report.html
+          echo "</body></html>" >> /tmp/security-reports/consolidated-report.html
 
       - name: Upload Consolidated HTML Report
         uses: actions/upload-artifact@v3
         with:
           name: consolidated-report
-          path: security-reports/consolidated-report.html
+          path: /tmp/security-reports/consolidated-report.html
