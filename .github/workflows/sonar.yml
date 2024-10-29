@@ -88,6 +88,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: List ZAP Report Files
+        run: |
+          echo "Listing files in /tmp/security-reports:"
+          ls -l /tmp/security-reports
+
       - name: Verify ZAP Report Files
         run: |
           if [[ -f "/tmp/security-reports/zap_report.html" && -f "/tmp/security-reports/zap_out.json" && -f "/tmp/security-reports/zap_report.md" ]]; then
