@@ -20,15 +20,16 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Generate HTML Report
-        if: success()
+      - name: Install html-sonar-report
         run: |
-          curl -L https://github.com/mkdocs/sonar-report-converter/releases/latest/download/sonar-report-converter.jar -o sonar-report-converter.jar
-          java -jar sonar-report-converter.jar -i .scannerwork/report-task.txt -o sonar-report.html
+          npm install -g html-sonar-report
+
+      - name: Generate HTML Report
+        run: |
+          html-sonar-report --token ${{ secrets.SONAR_TOKEN }} --url https://sonarcloud.io --component <your_project_key> --output sonar-report.html
 
       - name: Upload HTML Report
-        if: success()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: SonarCloud HTML Report
           path: sonar-report.html
