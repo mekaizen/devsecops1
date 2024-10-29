@@ -153,16 +153,3 @@ jobs:
           name: consolidated-report
           path: security-reports/consolidated-report.html
 
-      - name: Send Email with Report
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.example.com
-          server_port: 587
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "Consolidated Security Scan Report"
-          to: recipient@example.com
-          from: sender@example.com
-          content_type: "text/html"
-          body: "Please find the attached consolidated security report."
-          attachments: security-reports/consolidated-report.html
