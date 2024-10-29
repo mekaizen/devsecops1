@@ -77,7 +77,8 @@ jobs:
         run: docker build -t my-python-app .
 
       - name: Ensure Directory for ZAP Reports
-        run: mkdir -p /tmp/security-reports   
+        run: mkdir -p /tmp/security-reports && chmod 777 /tmp/security-reports  # Ensure write permissions
+ 
 
       - name: Start Application
         run: docker run -d --name my-app -p 8080:8080 my-python-app
