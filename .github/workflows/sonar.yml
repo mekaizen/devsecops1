@@ -24,6 +24,7 @@ jobs:
         run: |
           mkdir -p /tmp/security-reports
           curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=mekaizen_projectdevsecops&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > /tmp/security-reports/sonar-report.json
+          # Check if JSON is valid
           if ! jq empty /tmp/security-reports/sonar-report.json > /dev/null 2>&1; then
             echo "Error: Received invalid JSON from SonarCloud API"
             cat /tmp/security-reports/sonar-report.json
@@ -45,7 +46,11 @@ jobs:
             echo "</style><script src='https://cdn.jsdelivr.net/npm/chart.js'></script></head><body>"
             echo "<h2>SonarCloud Issues Report</h2>"
           } > /tmp/security-reports/sonar-report.html
+
+          # Initialize JavaScript object for chart data
           echo "<script>const issueData = {HIGH: 0, MEDIUM: 0, LOW: 0};</script>" >> /tmp/security-reports/sonar-report.html
+
+          # Categorize issues and write to HTML file
           {
             echo "<h3>High Severity Issues</h3><ul>"
             jq -r '.issues[] | select(.severity == "BLOCKER" or .severity == "CRITICAL") | "<li class=\"severity-HIGH\">\(.message) - Severity: HIGH</li>"' /tmp/security-reports/sonar-report.json
@@ -71,9 +76,6 @@ jobs:
       - name: Build Docker Image
         run: docker build -t my-python-app .
 
-      - name: Ensure Directory for ZAP Reports
-        run: mkdir -p /tmp/security-reports && chmod 777 /tmp/security-reports
-
       - name: Start Application
         run: docker run -d --name my-app -p 8080:8080 my-python-app
 
@@ -81,35 +83,10 @@ jobs:
         uses: zaproxy/action-baseline@v0.7.0
         with:
           target: "http://localhost:8080"
+          cmd_options: "-r /tmp/security-reports/zap_report.html -J /tmp/security-reports/zap_out.json -w /tmp/security-reports/zap_report.md"
           docker_name: "ghcr.io/zaproxy/zaproxy:weekly"
-        args: |
-          -v /tmp/security-reports:/zap/wrk:rw \
-          zap-baseline.py -t http://localhost:8080 \
-          -r /zap/wrk/zap_report.html \
-          -J /zap/wrk/zap_out.json \
-          -w /zap/wrk/zap_report.md
-
-      - name: List ZAP Report Files
-        run: |
-          echo "Listing files in /tmp/security-reports:"
-          ls -l /tmp/security-reports || echo "No files found in /tmp/security-reports"
-          echo "Checking if reports are empty:"
-          for file in /tmp/security-reports/*; do
-            if [[ -s $file ]]; then
-              echo "$file exists and has content."
-            else
-              echo "$file is empty or does not exist."
-            fi
-          done
-
-      - name: Verify ZAP Report Files
-        run: |
-          if [[ -f "/tmp/security-reports/zap_report.html" && -f "/tmp/security-reports/zap_out.json" && -f "/tmp/security-reports/zap_report.md" ]]; then
-            echo "All ZAP report files generated successfully."
-          else
-            echo "Error: One or more ZAP report files are missing."
-            exit 1
-          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload ZAP Reports as Artifacts
         uses: actions/upload-artifact@v3
@@ -169,24 +146,31 @@ jobs:
       - name: Generate Consolidated HTML Report
         run: |
           echo "<html><head><style>body { font-family: Arial, sans-serif; } h1, h2 { color: #4CAF50; }</style></head><body><h1>Consolidated Security Report</h1>" > /tmp/security-reports/consolidated-report.html
+
+          # Add SonarQube HTML Report if available
           if [[ -f "/tmp/security-reports/sonar-report.html" ]]; then
             echo "<h2>SonarQube SAST Report</h2>" >> /tmp/security-reports/consolidated-report.html
             cat /tmp/security-reports/sonar-report.html >> /tmp/security-reports/consolidated-report.html
           else
             echo "<p>SonarQube report not found!</p>" >> /tmp/security-reports/consolidated-report.html
           fi
+
+          # Add ZAP HTML Report if available
           if [[ -f "/tmp/security-reports/zap_report.html" ]]; then
             echo "<h2>OWASP ZAP DAST Report</h2>" >> /tmp/security-reports/consolidated-report.html
             cat /tmp/security-reports/zap_report.html >> /tmp/security-reports/consolidated-report.html
           else
             echo "<p>ZAP report not found!</p>" >> /tmp/security-reports/consolidated-report.html
           fi
+
+          # Add Dependency Check HTML Report if available
           if [[ -f "/tmp/security-reports/dependency-check-report.html" ]]; then
             echo "<h2>OWASP Dependency Check SCA Report</h2>" >> /tmp/security-reports/consolidated-report.html
             cat /tmp/security-reports/dependency-check-report.html >> /tmp/security-reports/consolidated-report.html
           else
             echo "<p>Dependency Check report not found!</p>" >> /tmp/security-reports/consolidated-report.html
           fi
+
           echo "</body></html>" >> /tmp/security-reports/consolidated-report.html
 
       - name: Upload Consolidated HTML Report
