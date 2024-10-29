@@ -41,7 +41,7 @@ jobs:
           ul { list-style-type: none; padding: 0; }
           li { margin: 10px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
           .severity-HIGH { color: #ff4d4d; font-weight: bold; }
-          .severity-MEDIUM { color: #ffcc00; }
+          .severity-MEDIUM { color: #0066cc; } /* Changed to blue for better readability */
           .severity-LOW { color: #666666; }
           </style><script src='https://cdn.jsdelivr.net/npm/chart.js'></script></head><body>" > /tmp/sonar/sonar-report.html
           
@@ -67,7 +67,7 @@ jobs:
             datasets: [{
               label: 'Issue Severity Distribution',
               data: [issueData.HIGH, issueData.MEDIUM, issueData.LOW],
-              backgroundColor: ['#ff4d4d', '#ffcc00', '#666666'],
+              backgroundColor: ['#ff4d4d', '#0066cc', '#666666'], /* Updated color for Medium */
               hoverOffset: 4
             }]
           };
