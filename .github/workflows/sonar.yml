@@ -33,7 +33,6 @@ jobs:
 
       - name: Convert JSON to HTML with Chart
         run: |
-          # Start HTML content with styles and scripts
           {
             echo "<html><head><style>"
             echo "body { font-family: Arial, sans-serif; margin: 20px; }"
@@ -42,7 +41,7 @@ jobs:
             echo "ul { list-style-type: none; padding: 0; }"
             echo "li { margin: 10px 0; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }"
             echo ".severity-HIGH { color: #ff4d4d; font-weight: bold; }"
-            echo ".severity-MEDIUM { color: #0066cc; } /* Changed to blue for better readability */"
+            echo ".severity-MEDIUM { color: #0066cc; }"
             echo ".severity-LOW { color: #666666; }"
             echo "</style><script src='https://cdn.jsdelivr.net/npm/chart.js'></script></head><body>"
             echo "<h2>SonarCloud Issues Report</h2>"
@@ -51,16 +50,18 @@ jobs:
           # Initialize JavaScript object for chart data
           echo "<script>const issueData = {HIGH: 0, MEDIUM: 0, LOW: 0};</script>" >> /tmp/sonar/sonar-report.html
 
-          # Generate categorized issue lists
-          echo "<h3>High Severity Issues</h3><ul>" >> /tmp/sonar/sonar-report.html
-          jq -r '.issues[] | select(.severity == "BLOCKER" or .severity == "CRITICAL") | "<li class=\"severity-HIGH\">\(.message) - Severity: HIGH</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
-          echo "</ul><h3>Medium Severity Issues</h3><ul>" >> /tmp/sonar/sonar-report.html
-          jq -r '.issues[] | select(.severity == "MAJOR") | "<li class=\"severity-MEDIUM\">\(.message) - Severity: MEDIUM</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
-          echo "</ul><h3>Low Severity Issues</h3><ul>" >> /tmp/sonar/sonar-report.html
-          jq -r '.issues[] | select(.severity == "MINOR") | "<li class=\"severity-LOW\">\(.message) - Severity: LOW</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
-          echo "</ul>" >> /tmp/sonar/sonar-report.html
+          # Categorize issues and write to HTML file
+          {
+            echo "<h3>High Severity Issues</h3><ul>"
+            jq -r '.issues[] | select(.severity == "BLOCKER" or .severity == "CRITICAL") | "<li class=\"severity-HIGH\">\(.message) - Severity: HIGH</li>"' /tmp/sonar/sonar-report.json
+            echo "</ul><h3>Medium Severity Issues</h3><ul>"
+            jq -r '.issues[] | select(.severity == "MAJOR") | "<li class=\"severity-MEDIUM\">\(.message) - Severity: MEDIUM</li>"' /tmp/sonar/sonar-report.json
+            echo "</ul><h3>Low Severity Issues</h3><ul>"
+            jq -r '.issues[] | select(.severity == "MINOR") | "<li class=\"severity-LOW\">\(.message) - Severity: LOW</li>"' /tmp/sonar/sonar-report.json
+            echo "</ul>"
+          } >> /tmp/sonar/sonar-report.html
 
-          # Add JavaScript chart
+          # Add JavaScript Chart and close HTML
           {
             echo "<h3>Severity Distribution</h3><canvas id='severityChart' width='400' height='400'></canvas>"
             echo "<script>"
@@ -72,7 +73,13 @@ jobs:
             echo "</script></body></html>"
           } >> /tmp/sonar/sonar-report.html
 
-          # Verify the output file to ensure completeness
+      - name: Verify HTML Report Completeness
+        run: |
+          # Display the last few lines for verification
+          echo "Verifying HTML Report Completeness:"
+          tail -n 10 /tmp/sonar/sonar-report.html
+
+          # Check for </html> closing tag
           if ! tail -n 1 /tmp/sonar/sonar-report.html | grep -q "</html>"; then
             echo "Error: HTML report is incomplete."
             exit 1
