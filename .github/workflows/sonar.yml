@@ -29,7 +29,7 @@ jobs:
           html-sonar-report --token ${{ secrets.SONAR_TOKEN }} --url https://sonarcloud.io --component <your_project_key> --output sonar-report.html
 
       - name: Upload HTML Report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: SonarCloud HTML Report
           path: sonar-report.html
