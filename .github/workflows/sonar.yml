@@ -83,9 +83,6 @@ jobs:
           target: "http://localhost:8080"
           cmd_options: "-r /zap/wrk/zap_report.html -J /zap/wrk/zap_out.json -w /zap/wrk/zap_report.md"
           docker_name: "ghcr.io/zaproxy/zaproxy:weekly"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
           args: |
             -v /tmp/security-reports:/zap/wrk:rw \
             --user root \
@@ -176,21 +173,18 @@ jobs:
       - name: Generate Consolidated HTML Report
         run: |
           echo "<html><head><style>body { font-family: Arial, sans-serif; } h1, h2 { color: #4CAF50; }</style></head><body><h1>Consolidated Security Report</h1>" > /tmp/security-reports/consolidated-report.html
-
           if [[ -f "/tmp/security-reports/sonar-report.html" ]]; then
             echo "<h2>SonarQube SAST Report</h2>" >> /tmp/security-reports/consolidated-report.html
             cat /tmp/security-reports/sonar-report.html >> /tmp/security-reports/consolidated-report.html
           else
             echo "<p>SonarQube report not found!</p>" >> /tmp/security-reports/consolidated-report.html
           fi
-
           if [[ -f "/tmp/security-reports/zap_report.html" ]]; then
             echo "<h2>OWASP ZAP DAST Report</h2>" >> /tmp/security-reports/consolidated-report.html
             cat /tmp/security-reports/zap_report.html >> /tmp/security-reports/consolidated-report.html
           else
             echo "<p>ZAP report not found!</p>" >> /tmp/security-reports/consolidated-report.html
           fi
-
           if [[ -f "/tmp/security-reports/dependency-check-report.html" ]]; then
             echo "<h2>OWASP Dependency Check SCA Report</h2>" >> /tmp/security-reports/consolidated-report.html
             cat /tmp/security-reports/dependency-check-report.html >> /tmp/security-reports/consolidated-report.html
