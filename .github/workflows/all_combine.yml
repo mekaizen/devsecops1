@@ -24,11 +24,8 @@ jobs:
 
       - name: Generate SonarQube HTML Report
         run: |
-          mkdir -p security-reports  # Create a directory for the report
-          curl -u ${{ secrets.SONAR_TOKEN }} \
-            "https://sonarcloud.io/api/issues/search?componentKeys=your_project_key&resolved=false&format=html" \
-            -o security-reports/sonar_report.html
-
+          mkdir -p security-reports
+          curl -u ${{ secrets.SONAR_TOKEN }} "https://sonarcloud.io/api/issues/search?componentKeys=your_project_key&resolved=false&types=BUG,VULNERABILITY,CODE_SMELL&severities=CRITICAL,BLOCKER,MAJOR" -o security-reports/sonar_report.html
       - name: Upload SonarQube Report as Artifact
         uses: actions/upload-artifact@v3
         with:
@@ -49,13 +46,13 @@ jobs:
         run: docker run -d --name my-app -p 8080:8080 my-python-app
 
       - name: Create Report Directory
-        run: mkdir -p zap-reports && chmod 777 zap-reports
+        run: mkdir -p security-reports/zap-reports
 
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.7.0
         with:
           target: "http://localhost:8080"
-          cmd_options: "-r zap-reports/zap_report.html -J zap-reports/zap_out.json -w zap-reports/zap_report.md"
+          cmd_options: "-r security-reports/zap_report.html -J security-reports/zap_out.json -w security-reports/zap_report.md"
           docker_name: "ghcr.io/zaproxy/zaproxy:weekly"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -64,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: zap_reports
-          path: zap-reports
+          path: security-reports/zap-reports
 
       - name: Stop Application
         run: docker stop my-app && docker rm my-app
@@ -152,4 +149,3 @@ jobs:
         with:
           name: consolidated-report
           path: security-reports/consolidated-report.html
-
