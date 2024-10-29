@@ -22,17 +22,17 @@ jobs:
 
       - name: Export SonarCloud Report to JSON
         run: |
-          mkdir -p .scannerwork
-          curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=mekaizen_projectdevsecops&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > .scannerwork/sonar-report.json
+          mkdir -p /tmp/sonar
+          curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=mekaizen_projectdevsecops&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > /tmp/sonar/sonar-report.json
 
       - name: Convert JSON to HTML
         run: |
-          echo "<html><body><h2>SonarCloud Issues Report</h2><ul>" > sonar-report.html
-          jq -r '.issues[] | "<li>\(.message) - Severity: \(.severity)</li>"' .scannerwork/sonar-report.json >> sonar-report.html
-          echo "</ul></body></html>" >> sonar-report.html
+          echo "<html><body><h2>SonarCloud Issues Report</h2><ul>" > /tmp/sonar/sonar-report.html
+          jq -r '.issues[] | "<li>\(.message) - Severity: \(.severity)</li>"' /tmp/sonar/sonar-report.json >> /tmp/sonar/sonar-report.html
+          echo "</ul></body></html>" >> /tmp/sonar/sonar-report.html
 
       - name: Upload HTML Report
         uses: actions/upload-artifact@v4
         with:
           name: SonarCloud HTML Report
-          path: sonar-report.html
+          path: /tmp/sonar/sonar-report.html
