@@ -20,16 +20,19 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Install html-sonar-report
+      - name: Export SonarCloud Report to JSON
         run: |
-          npm install -g html-sonar-report
+          mkdir -p .scannerwork
+          curl -X GET -u "${{ secrets.SONAR_TOKEN }}:" "https://sonarcloud.io/api/issues/search?componentKeys=<your_project_key>&types=BUG,VULNERABILITY,CODE_SMELL&ps=500" > .scannerwork/sonar-report.json
 
-      - name: Generate HTML Report
+      - name: Convert JSON to HTML
         run: |
-          html-sonar-report --token ${{ secrets.SONAR_TOKEN }} --url https://sonarcloud.io --component <your_project_key> --output sonar-report.html
+          echo "<html><body><h2>SonarCloud Issues Report</h2><ul>" > sonar-report.html
+          jq -r '.issues[] | "<li>\(.message) - Severity: \(.severity)</li>"' .scannerwork/sonar-report.json >> sonar-report.html
+          echo "</ul></body></html>" >> sonar-report.html
 
       - name: Upload HTML Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v2
         with:
           name: SonarCloud HTML Report
           path: sonar-report.html
