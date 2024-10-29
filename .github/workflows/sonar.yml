@@ -96,6 +96,15 @@ jobs:
           echo "Listing files in /tmp/security-reports:"
           ls -l /tmp/security-reports || echo "No files found in /tmp/security-reports"
 
+          echo "Checking if reports are empty:"
+          for file in /tmp/security-reports/*; do
+            if [[ -s $file ]]; then
+              echo "$file exists and has content."
+            else
+              echo "$file is empty or does not exist."
+            fi
+          done
+
 
       - name: Verify ZAP Report Files
         run: |
