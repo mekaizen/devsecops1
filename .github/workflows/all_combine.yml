@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  # Job 1: SAST - Run SonarQube Scan and Generate Report
+  # Job 1: SAST - Run SonarQube Scan and Generate HTML Report
   sonarcloud_scan:
     runs-on: ubuntu-latest
     steps:
@@ -20,21 +20,20 @@ jobs:
         uses: sonarsource/sonarcloud-github-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: "your_project_key"  # Replace with your project key
+          SONAR_PROJECT_KEY: "your_project_key"  # Replace with your SonarQube project key
 
-      - name: Generate Sonar Report
+      - name: Generate SonarQube HTML Report
         run: |
-          mkdir -p security-reports
+          mkdir -p security-reports  # Create a directory for the report
           curl -u ${{ secrets.SONAR_TOKEN }} \
-            "https://sonarcloud.io/api/issues/search?componentKeys=your_project_key&resolved=false" \
-            -o security-reports/sonar-report.json
-          # Optional: Process the JSON report to HTML or Markdown as needed.
+            "https://sonarcloud.io/api/issues/search?componentKeys=your_project_key&resolved=false&format=html" \
+            -o security-reports/sonar_report.html
 
       - name: Upload SonarQube Report as Artifact
         uses: actions/upload-artifact@v3
         with:
           name: sonar_report
-          path: security-reports/sonar-report.json
+          path: security-reports/sonar_report.html
 
   # Job 2: DAST - Run OWASP ZAP Scan
   zap_scan:
@@ -87,13 +86,13 @@ jobs:
         run: |
           mkdir -p security-reports
           dependency-check/dependency-check/bin/dependency-check.sh --project "My Project SCA" \
-          --scan $(pwd) --format "ALL" --out $(pwd)/security-reports/dependency-check-report
+          --scan $(pwd) --format "HTML" --out $(pwd)/security-reports/dependency-check-report.html
 
       - name: Upload Dependency Check Report as Artifact
         uses: actions/upload-artifact@v3
         with:
           name: dependency-check-report
-          path: security-reports/dependency-check-report
+          path: security-reports/dependency-check-report.html
 
   # Job 4: Combine Reports and Send Email
   combine_reports:
@@ -122,11 +121,10 @@ jobs:
         run: |
           echo "<html><body><h1>Consolidated Security Report</h1>" > security-reports/consolidated-report.html
           
-          # Add SonarQube JSON Report if available
-          if [[ -f "security-reports/sonar-report.json" ]]; then
-            echo "<h2>SonarQube SAST Report</h2><pre>" >> security-reports/consolidated-report.html
-            cat security-reports/sonar-report.json >> security-reports/consolidated-report.html
-            echo "</pre>" >> security-reports/consolidated-report.html
+          # Add SonarQube HTML Report if available
+          if [[ -f "security-reports/sonar_report.html" ]]; then
+            echo "<h2>SonarQube SAST Report</h2>" >> security-reports/consolidated-report.html
+            cat security-reports/sonar_report.html >> security-reports/consolidated-report.html
           else
             echo "<p>SonarQube report not found!</p>" >> security-reports/consolidated-report.html
           fi
@@ -140,9 +138,9 @@ jobs:
           fi
           
           # Add Dependency Check HTML Report if available
-          if [[ -f "security-reports/dependency-check-report/dependency-check-report.html" ]]; then
+          if [[ -f "security-reports/dependency-check-report.html" ]]; then
             echo "<h2>OWASP Dependency Check SCA Report</h2>" >> security-reports/consolidated-report.html
-            cat security-reports/dependency-check-report/dependency-check-report.html >> security-reports/consolidated-report.html
+            cat security-reports/dependency-check-report.html >> security-reports/consolidated-report.html
           else
             echo "<p>Dependency Check report not found!</p>" >> security-reports/consolidated-report.html
           fi
@@ -155,3 +153,16 @@ jobs:
           name: consolidated-report
           path: security-reports/consolidated-report.html
 
+      - name: Send Email with Report
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.example.com
+          server_port: 587
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Consolidated Security Scan Report"
+          to: recipient@example.com
+          from: sender@example.com
+          content_type: "text/html"
+          body: "Please find the attached consolidated security report."
+          attachments: security-reports/consolidated-report.html
