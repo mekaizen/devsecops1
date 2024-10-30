@@ -45,6 +45,6 @@ jobs:
           name: zap_reports
           path: zap-reports
 
-      # Step 7: Stop and Remove the Application Container
+      # Step 7: Stop and Remove the Application Containers
       - name: Stop Application
         run: docker stop my-app && docker rm my-app
